@@ -33,6 +33,7 @@ def begin_login():
 @app.route('/saml', methods=['GET'])
 def begin_login_get():
     saml_request = flask.request.args['SAMLRequest']
+    saml_relay = flask.request.args['RelayState']
     logging.info("Got saml_request %s", saml_request)
 
     req = parse_request(saml_request)
@@ -43,6 +44,8 @@ def begin_login_get():
 
     response = flask.make_response(flask.redirect("/saml/login", code=302))
     response.set_cookie('mockidp_request_id', value=req.id)
+    if saml_relay:
+        response.set_cookie('mockidp_relay_state', value=saml_relay)
     return response
 
 
@@ -59,12 +62,14 @@ def authenticate():
     status, user = login_user(conf, username, password)
     if status == LOGIN_SUCCESS:
         saml_req_id = flask.request.cookies.get('mockidp_request_id')
+        saml_relay = flask.request.cookies.get('mockidp_relay_state') or None
+
         if saml_req_id not in open_saml_requests:
             return '404: Missing login session', 404
         saml_request = open_saml_requests[saml_req_id]
         session = get_session(user, saml_request)
         url, saml_response = create_auth_response(conf, session)
-        return flask.render_template('auth_response.html', post_url=url, saml_response=saml_response)
+        return flask.render_template('auth_response.html', post_url=url, saml_response=saml_response, saml_relay=saml_relay)
     else:
         flask.flash(f"Incorrect username or password {username}")
         return flask.redirect("/saml/login", code=302)

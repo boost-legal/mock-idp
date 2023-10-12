@@ -1,9 +1,10 @@
 # coding: utf-8
 import time
+import uuid
+import datetime
 
 _sessions = dict()
 _next_session_id = 0
-
 
 class Session:
     def __init__(self, user, request):
@@ -11,9 +12,8 @@ class Session:
         self.request_id = request.id
         self.sp_entity_id = request.sp_entity_id
         self.idp_id = request.idp_id
-        self.id = _generate_session_id(user['username'])
-        self.created = time.time()
-
+        self.id = str(uuid.uuid4()).replace("-", "")
+        self.created = datetime.datetime.now()
 
 def get_session(user, request):
     username = user['username']

@@ -10,6 +10,8 @@ from signxml import XMLSigner
 
 from mockidp.core.config import get_service_provider
 
+EXPIRES_AT_SALT = datetime.timedelta(hours=3)
+
 env = Environment(
     loader=PackageLoader('mockidp', 'templates'),
     autoescape=select_autoescape(['html', 'xml']),
@@ -42,7 +44,7 @@ def sign_assertions(response_str):
 
 
 def create_auth_response(config, session):
-    rendered_response = render_response(session, session.user)
+    rendered_response = render_response(session, session.user, config)
 
     signed_response = sign_assertions(rendered_response)
 
@@ -54,13 +56,16 @@ def create_auth_response(config, session):
     return url, encoded_response
 
 
-def render_response(session, user):
+def render_response(session, user, config):
     template = env.get_template('saml_response.xml')
     issue_instant = get_issue_instant(session)
+    expires_at = format_date_to_xml((session.created + EXPIRES_AT_SALT).timestamp())
     params = dict(
         issue_instant=issue_instant,
         session=session,
-        user=user
+        user=user,
+        config=config,
+        expires_at=expires_at
     )
     response = template.render(params)
 
@@ -91,8 +96,11 @@ def render_logout_response(config, user, session):
     response = template.render(params)
     return response
 
+def format_date_to_xml(timestamp):
+    return datetime.datetime.fromtimestamp(timestamp).replace(tzinfo=datetime.timezone.utc, microsecond=0).isoformat()
+
 def get_issue_instant(session):
     # session.created is set using time.getTime().
     # But IssueInstant is expected to be in UTC form of ISO-8601 format
-    issue_instant = datetime.datetime.fromtimestamp(session.created).replace(tzinfo=datetime.timezone.utc, microsecond=0).isoformat()
+    issue_instant = format_date_to_xml(session.created.timestamp())
     return issue_instant
