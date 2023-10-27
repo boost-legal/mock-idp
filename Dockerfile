@@ -27,6 +27,7 @@ RUN pip3 install pipenv
 RUN pipenv install --system
 
 # Copy code
+COPY mockidp.yaml .
 COPY bin ./bin
 COPY mockidp ./mockidp
 COPY doc ./doc
